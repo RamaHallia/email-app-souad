@@ -536,7 +536,7 @@ export default function Dashboard() {
                                     className={autoSort ? 'animate-pulse-opacity' : ''}
                                 />
                                 {autoSort && (
-                                    <div className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce-alert shadow-md">
+                                    <div className="absolute -top-1 -right-1 w-4 h-4 md:w-4 md:h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce-alert shadow-md">
                                         !
                                     </div>
                                 )}
