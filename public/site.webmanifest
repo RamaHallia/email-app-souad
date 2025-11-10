@@ -1,0 +1,20 @@
+{
+
+
+
+  "name": "Tri Automatique Email",
+  "short_name": "Tri Email",
+  "description": "Solution de tri automatique et intelligent de vos emails",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FE9736",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
+

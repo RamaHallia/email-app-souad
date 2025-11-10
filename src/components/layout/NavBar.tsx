@@ -1,0 +1,276 @@
+'use client';
+
+import { cn } from '@/lib/utils';
+import { ChevronDown, Menu, X } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { ComponentPropsWithoutRef, useEffect, useState } from 'react';
+import { LoginModal } from '../LoginModal';
+
+type ButtonLinkProps = {
+  text: string;
+  asChevron?: boolean;
+  asDropdown?: boolean;
+  isOpen?: boolean;
+  className?: string;
+  href?: string;
+  onClick?: () => void;
+} & ComponentPropsWithoutRef<'a'>;
+
+function ButtonLink({
+  text,
+  href,
+  className,
+  asChevron,
+  asDropdown,
+  isOpen,
+  onClick,
+  ...props
+}: ButtonLinkProps) {
+  if (!asDropdown) {
+    // Link normal
+    return (
+      <Link
+        href={href!}
+        className={cn('group flex items-center gap-0.5 px-3 py-2', className)}
+        {...props}
+      >
+        <Image
+          src="/assets/svg/petal.svg"
+          width={19}
+          height={16}
+          alt=""
+          style={{ height: 'auto' }}
+          className={cn(
+            'translate-x-[-6px] opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100',
+            isOpen && 'translate-x-0 opacity-100',
+          )}
+        />
+        <span
+          className={cn(
+            'bg-clip-text font-semibold text-white transition-all duration-300 group-hover:scale-105',
+            isOpen && 'bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] text-transparent',
+          )}
+        >
+          {text}
+        </span>
+        {asChevron && (
+          <span className="-mr-3">
+            <ChevronDown
+              size={16}
+              className={cn(
+                'transition-transform duration-300 group-hover:rotate-180 group-hover:stroke-orange-400',
+                isOpen && 'rotate-180 stroke-orange-400',
+              )}
+            />
+          </span>
+        )}
+      </Link>
+    );
+  } else {
+    // Dropdown → button cliquable mais pas de navigation
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn('group flex cursor-pointer items-center gap-0.5 px-3 py-2', className)}
+      >
+        <Image
+          src="/assets/svg/petal.svg"
+          width={19}
+          height={16}
+          alt=""
+          style={{ height: 'auto' }}
+          className={cn(
+            'translate-x-[-6px] opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100',
+            isOpen && 'translate-x-0 opacity-100',
+          )}
+        />
+        <span
+          className={cn(
+            'bg-clip-text font-semibold text-white transition-all duration-300 group-hover:scale-105',
+          )}
+        >
+          {text}
+        </span>
+        {asChevron && (
+          <span className="-mr-3">
+            <ChevronDown
+              size={16}
+              className={cn(
+                'transition-transform duration-300 group-hover:rotate-180',
+                isOpen && 'rotate-180',
+              )}
+            />
+          </span>
+        )}
+      </button>
+    );
+  }
+}
+
+export default function NavBar() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+    <nav
+      className={cn(
+        'fixed inset-x-4 z-50 mx-auto mt-4 max-w-7xl rounded-2xl bg-transparent text-white shadow-lg backdrop-blur-md transition-all duration-300',
+        isOpen ? 'border border-[#656462] bg-gray-800/60' : 'bg-gray-800/40',
+      )}
+    >
+      {/* Top bar */}
+      <div className="grid grid-cols-3 items-center p-3 md:flex md:justify-between">
+        {/* Left - Menu button */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-fit rounded-md bg-[#333231]/70 p-2 transition-colors hover:bg-[#333231]/70 md:hidden"
+          aria-label="Toggle menu"
+        >
+          {isOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+
+        {/* Center - Logo */}
+        <Link
+          href={'/'}
+          className="flex items-center justify-center transition-transform hover:scale-105 md:justify-start"
+          onClick={() => setIsOpen(false)}
+        >
+          <Image
+            src="/assets/svg/hallia-orange-logo.svg"
+            width={40}
+            height={40}
+            alt="HALL-IA Logo"
+            className="drop-shadow-md"
+            style={{ height: 'auto' }}
+          />
+          <Image
+            src="/assets/svg/hallia-letter-navbar-logo.svg"
+            width={120}
+            height={24}
+            alt="HALL-IA"
+            className="opacity-90"
+            style={{ height: 'auto' }}
+          />
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden justify-center md:flex">
+          <ul className="flex gap-2">
+            <li>
+              <ButtonLink href="/#audit" text="Étapes" onClick={() => setIsOpen(false)} />
+            </li>
+          
+            <li>
+              <ButtonLink href="/#audit" text="Avantages" onClick={() => setIsOpen(false)} />
+            </li>
+
+            <li>
+              <ButtonLink href="/#formations" text="Prix" onClick={() => setIsOpen(false)} />
+            </li>
+
+            <li>
+              <ButtonLink href="/contact" text="Contactez-nous" onClick={() => setIsOpen(false)} />
+            </li>
+          </ul>
+        </div>
+
+        {/* Right - Login button */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsLoginModalOpen(true)}
+            className="w-fit rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-nowrap transition-colors hover:bg-white hover:text-gray-600 md:text-base"
+          >
+            Se connecter
+          </button>
+        </div>
+      </div>
+
+      {/* Dropdown menu */}
+      <div
+        className={cn(
+          'overflow-hidden transition-all duration-300',
+          isOpen ? 'mt-4 max-h-[800px] opacity-100 lg:mt-0 lg:max-h-0' : 'max-h-0 opacity-0',
+        )}
+      >
+        <div className="grid gap-4 divide-[#656462] max-md:divide-y-1 md:grid-cols-1 md:gap-8">
+          {/* Section - Audit */}
+          <div className="space-y-3 px-3 pb-4 md:hidden">
+            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Audit</h3>
+            <Link
+              href="/#audit"
+              className="group flex items-center gap-3"
+              onClick={() => setIsOpen(false)}
+            >
+              <p className="font-semibold transition-colors group-hover:text-orange-400">
+                Étapes{' '}
+                <span className="font-normal text-white">– Conseil et rapport d’expert</span>
+              </p>
+            </Link>
+          </div>
+
+          <div className="space-y-3 px-3 pb-4 md:hidden">
+            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Audit</h3>
+            <Link
+              href="/#audit"
+              className="group flex items-center gap-3"
+              onClick={() => setIsOpen(false)}
+            >
+              <p className="font-semibold transition-colors group-hover:text-orange-400">
+                Avantages{' '}
+                <span className="font-normal text-white">– Conseil et rapport d’expert</span>
+              </p>
+            </Link>
+          </div>
+
+     
+
+          {/* Section - Formations */}
+          <div className="space-y-3 px-3 pb-3 md:hidden">
+            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">
+              Prix
+            </h3>
+            <Link
+              href="/#formations"
+              className="group flex items-center gap-3"
+              onClick={() => setIsOpen(false)}
+            >
+            </Link>
+          </div>
+
+          {/* Section - Connexion (mobile) */}
+          <div className="space-y-3 px-3 pb-4 md:hidden border-t border-[#656462] pt-4">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setIsLoginModalOpen(true);
+              }}
+              className="w-full rounded-full bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] px-4 py-2.5 text-sm font-medium text-white transition-all hover:scale-105"
+            >
+              Se connecter
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    {/* Modal de connexion - rendu en dehors de la nav */}
+    <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+    </>
+  );
+}
