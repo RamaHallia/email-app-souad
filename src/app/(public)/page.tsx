@@ -18,11 +18,16 @@ export default function Accueil() {
 
 
             <Hero />
-            {/* <HowItWorkSection /> */}
+            <section id="etapes">
+            <HowItWorkSection />
+            </section>
             <section>
-
+            <section id="avantages">
             <ProductivitySection />
+            </section>
+            <section id="prix">
             <AppPack />
+            </section>
             <TestimonialSection />
             <FaqSection />
             <CTASection />

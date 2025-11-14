@@ -345,10 +345,9 @@ export default function UserSettingsPage() {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-white rounded-t-xl p-6 shadow-sm border border-gray-200"
+                    className="bg-white rounded-t-xl p-6 border border-gray-200 border-b-0"
                 >
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Paramètres</h1>
-                    <p className="text-gray-600">Gérez vos informations personnelles et votre abonnement</p>
                 </motion.div>
 
                 {/* Navbar horizontale */}
@@ -356,12 +355,11 @@ export default function UserSettingsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 0.2 }}
-                    className="bg-white border-x border-gray-200"
+                    className="bg-white border-x   border-gray-200"
                 >
                     <nav className="flex border-b border-gray-200">
                         <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            
                             onClick={() => setActiveSection('personal')}
                             className={`flex items-center gap-2 px-6 py-4 font-medium transition-all ${
                                 activeSection === 'personal'

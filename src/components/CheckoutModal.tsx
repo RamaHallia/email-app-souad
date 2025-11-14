@@ -213,6 +213,12 @@ export function CheckoutModal({ userId, onComplete, onClose, isUpgrade = false, 
                                     <li>• Réponses automatiques IA</li>
                                 </ul>
                             </div>
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p className="text-sm font-medium text-blue-900 text-center">
+                                    ✓ Sans engagement - Résiliez à tout moment
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex gap-3">
@@ -358,6 +364,13 @@ export function CheckoutModal({ userId, onComplete, onClose, isUpgrade = false, 
                                     <p className="text-xs text-gray-600">HT/mois</p>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Message sans engagement */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                            <p className="text-sm font-medium text-blue-900 text-center">
+                                ✓ Sans engagement - Résiliez à tout moment
+                            </p>
                         </div>
                     </div>
 

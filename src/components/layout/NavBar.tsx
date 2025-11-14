@@ -186,15 +186,15 @@ export default function NavBar() {
         <div className="hidden justify-center md:flex">
           <ul className="flex gap-2">
             <li>
-              <ButtonLink href="/#audit" text="Étapes" onClick={() => setIsOpen(false)} />
+              <ButtonLink href="/#etapes" text="Étapes" onClick={() => setIsOpen(false)} />
             </li>
           
             <li>
-              <ButtonLink href="/#audit" text="Avantages" onClick={() => setIsOpen(false)} />
+              <ButtonLink href="/#avantages" text="Avantages" onClick={() => setIsOpen(false)} />
             </li>
 
             <li>
-              <ButtonLink href="/#formations" text="Prix" onClick={() => setIsOpen(false)} />
+              <ButtonLink href="/#prix" text="Prix" onClick={() => setIsOpen(false)} />
             </li>
           </ul>
         </div>
@@ -292,47 +292,50 @@ export default function NavBar() {
         )}
       >
         <div className="grid gap-4 divide-[#656462] max-md:divide-y-1 md:grid-cols-1 md:gap-8">
-          {/* Section - Audit */}
+          {/* Section - Étapes */}
           <div className="space-y-3 px-3 pb-4 md:hidden">
-            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Audit</h3>
+            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Étapes</h3>
             <Link
-              href="/#audit"
+              href="/#etapes"
               className="group flex items-center gap-3"
               onClick={() => setIsOpen(false)}
             >
               <p className="font-semibold transition-colors group-hover:text-orange-400">
                 Étapes{' '}
-                <span className="font-normal text-white">– Conseil et rapport d’expert</span>
+                <span className="font-normal text-white">– Comment ça marche</span>
               </p>
             </Link>
           </div>
 
+          {/* Section - Avantages */}
           <div className="space-y-3 px-3 pb-4 md:hidden">
-            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Audit</h3>
+            <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">Avantages</h3>
             <Link
-              href="/#audit"
+              href="/#avantages"
               className="group flex items-center gap-3"
               onClick={() => setIsOpen(false)}
             >
               <p className="font-semibold transition-colors group-hover:text-orange-400">
                 Avantages{' '}
-                <span className="font-normal text-white">– Conseil et rapport d’expert</span>
+                <span className="font-normal text-white">– Pourquoi nous choisir</span>
               </p>
             </Link>
           </div>
 
-     
-
-          {/* Section - Formations */}
+          {/* Section - Prix */}
           <div className="space-y-3 px-3 pb-3 md:hidden">
             <h3 className="text-sm font-semibold tracking-wide text-gray-300 uppercase">
               Prix
             </h3>
             <Link
-              href="/#formations"
+              href="/#prix"
               className="group flex items-center gap-3"
               onClick={() => setIsOpen(false)}
             >
+              <p className="font-semibold transition-colors group-hover:text-orange-400">
+                Prix{' '}
+                <span className="font-normal text-white">– Nos offres</span>
+              </p>
             </Link>
           </div>
 

@@ -150,8 +150,10 @@ export function SetupEmailModal({ userId, onComplete }: SetupEmailModalProps) {
         }
     };
 
-    const handleSmtpImapSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSmtpImapSubmit = async (e?: React.FormEvent) => {
+        if (e) {
+            e.preventDefault();
+        }
         
         if (!formData.email || !formData.password || !formData.imapHost) {
             showToast('Veuillez remplir tous les champs obligatoires', 'warning');
@@ -205,10 +207,19 @@ export function SetupEmailModal({ userId, onComplete }: SetupEmailModalProps) {
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
             
             <div className="fixed inset-0 z-[51] flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-3xl border border-gray-200 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto font-inter">
                     
                     {/* Header */}
                     <div className="relative px-8 pt-8 pb-4">
+                        {step === 2 && selectedProvider === 'smtp_imap' && (
+                            <button
+                                type="button"
+                                onClick={() => setStep(1)}
+                                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 mb-4"
+                            >
+                                ← Retour
+                            </button>
+                        )}
                         <div className="text-center mb-2">
                             <div className="w-16 h-16 bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Mail className="w-8 h-8 text-white" />
@@ -220,7 +231,7 @@ export function SetupEmailModal({ userId, onComplete }: SetupEmailModalProps) {
                     </div>
 
                     {/* Contenu scrollable */}
-                    <div className="overflow-y-auto max-h-[calc(90vh-200px)] px-8 py-4">
+                    <div className="overflow-y-auto max-h-[calc(90vh-200px)] px-8 p-4">
                         {step === 1 ? (
                             <div className="space-y-4">
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Choisissez votre fournisseur</h3>
@@ -289,50 +300,65 @@ export function SetupEmailModal({ userId, onComplete }: SetupEmailModalProps) {
                                 </button>
                             </div>
                         ) : (
-                            <form onSubmit={handleSmtpImapSubmit} className="space-y-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setStep(1)}
-                                    className="text-gray-600 hover:text-gray-900 flex items-center gap-2 mb-4"
-                                >
-                                    ← Retour
-                                </button>
+                            <div className="space-y-4 mb-6">
+                                {/* Messages d'erreur/succès en haut */}
+                                {testResult && !testResult.success && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                                        <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-red-800 text-sm">Erreur de connexion</div>
+                                            <div className="text-xs text-red-700 mt-1">{testResult.message}</div>
+                                        </div>
+                                    </div>
+                                )}
 
-                                <h3 className="text-xl font-bold text-gray-900">Configuration SMTP/IMAP</h3>
+                                {testResult && testResult.success && (
+                                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                                        <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-green-800 text-sm">Connexion réussie</div>
+                                            <div className="text-xs text-green-700 mt-1">Les paramètres sont valides. Vous pouvez terminer la configuration.</div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Email */}
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Email <span className="text-red-500">*</span>
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                                        Adresse email
                                     </label>
                                     <input
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => handleFormChange('email', e.target.value)}
-                                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                        placeholder="votre@email.com"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                        placeholder="contact@hallia.ai"
                                         required
                                     />
                                 </div>
 
                                 {/* Mot de passe */}
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Mot de passe <span className="text-red-500">*</span>
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                                        Mot de passe
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPassword ? "text" : "password"}
                                             value={formData.password}
                                             onChange={(e) => handleFormChange('password', e.target.value)}
-                                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                             placeholder="••••••••"
                                             required
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                                         >
                                             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
@@ -340,101 +366,116 @@ export function SetupEmailModal({ userId, onComplete }: SetupEmailModalProps) {
                                 </div>
 
                                 {/* Serveur IMAP */}
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="col-span-2">
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                            Serveur IMAP <span className="text-red-500">*</span>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                                            Serveur IMAP Entrant
                                         </label>
                                         <input
                                             type="text"
                                             value={formData.imapHost}
                                             onChange={(e) => handleFormChange('imapHost', e.target.value)}
-                                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                             placeholder="imap.example.com"
                                             required
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Port</label>
+                                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                                            Port IMAP
+                                        </label>
                                         <input
                                             type="number"
                                             value={formData.imapPort}
                                             onChange={(e) => handleFormChange('imapPort', parseInt(e.target.value))}
-                                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                            placeholder="993"
                                             required
                                         />
                                     </div>
                                 </div>
 
                                 {/* Bouton test */}
-                                <div>
-                                    <button
-                                        type="button"
-                                        onClick={handleTestConnection}
-                                        disabled={testing || !formData.email || !formData.password || !formData.imapHost}
-                                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50"
-                                    >
-                                        {testing ? (
-                                            <>
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                Test en cours...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Server className="w-5 h-5" />
-                                                Tester la connexion
-                                            </>
-                                        )}
-                                    </button>
-
-                                    {testResult && (
-                                        <div className={`mt-3 p-4 rounded-lg flex items-start gap-3 ${
-                                            testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                                        }`}>
-                                            {testResult.success ? (
-                                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                                            ) : (
-                                                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                            )}
-                                            <div>
-                                                <p className={`font-semibold ${testResult.success ? 'text-green-900' : 'text-red-900'}`}>
-                                                    {testResult.success ? 'Succès' : 'Erreur'}
-                                                </p>
-                                                <p className={`text-sm ${testResult.success ? 'text-green-700' : 'text-red-700'}`}>
-                                                    {testResult.message}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Bouton enregistrer */}
                                 <button
-                                    type="submit"
+                                    type="button"
+                                    onClick={handleTestConnection}
+                                    disabled={testing || !formData.email || !formData.password || !formData.imapHost}
+                                    className={`w-full px-4 py-2.5 border-2 rounded-full font-medium transition-all flex items-center justify-center gap-2 ${
+                                        (testing || !formData.email || !formData.password || !formData.imapHost) 
+                                            ? 'opacity-50 cursor-not-allowed border-orange-500 text-orange-600' 
+                                            : testResult?.success
+                                                ? 'bg-green-600 border-green-600 text-white hover:bg-green-700 hover:border-green-700'
+                                                : 'border-orange-500 text-orange-600 hover:bg-gradient-to-br hover:from-[#F35F4F] hover:to-[#FFAD5A] hover:text-white hover:border-transparent'
+                                    }`}
+                                >
+                                    {testing ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Test en cours...
+                                        </>
+                                    ) : testResult?.success ? (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Connexion réussie
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Tester la connexion
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bouton de soumission pour SMTP/IMAP */}
+                    {step === 2 && selectedProvider === 'smtp_imap' && (
+                        <div className="px-8 pb-6">
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleSmtpImapSubmit()}
                                     disabled={loading || !tested}
-                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] text-white rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50"
+                                    className={`group relative flex-1 inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] py-3 font-medium text-white shadow-lg transition-all duration-300 ease-out ${tested
+                                        ? 'hover:shadow-xl cursor-pointer'
+                                        : 'opacity-50 cursor-not-allowed'
+                                        }`}
                                 >
                                     {loading ? (
                                         <>
                                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            Configuration...
+                                            <span className="relative z-10 transition-transform duration-300">Configuration...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <CheckCircle className="w-5 h-5" />
-                                            {tested ? 'Terminer la configuration' : 'Testez d\'abord la connexion'}
+                                            <span className="relative z-10 transition-transform duration-300 group-hover:-translate-x-1">
+                                                Terminer la configuration
+                                            </span>
+                                            {tested && (
+                                                <svg
+                                                    className="relative z-10 h-5 w-5 -translate-x-2 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                                </svg>
+                                            )}
                                         </>
                                     )}
                                 </button>
-                                
-                                {!tested && (
-                                    <p className="text-sm text-orange-600 text-center -mt-2">
-                                        Vous devez d'abord tester la connexion avec succès
-                                    </p>
-                                )}
-                            </form>
-                        )}
-                    </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Message informatif */}
                     <div className="px-8 pb-6">

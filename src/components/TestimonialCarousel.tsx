@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Marquee } from './ui/marquee';
 
 const testimonials = [
@@ -42,8 +42,6 @@ const testimonials = [
     text: "HALL-IA a développé un assistant IA qui analyse mes documents juridiques et extrait automatiquement les informations clés. Le gain de temps est spectaculaire, et la précision de l'analyse est impressionnante. L'équipe a su comprendre les spécificités de mon métier et adapter la solution en conséquence. Je recommande sans hésitation !",
   },
 ];
-
-
 
 function Testimonial({
   name,
@@ -119,26 +117,187 @@ function Testimonial({
 }
 
 export default function TestimonialCarousel() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const container = scrollRef.current;
+      const scrollAmount = 420;
+
+      const maxScrollLeft = container.scrollWidth - container.clientWidth;
+      const newScrollLeft =
+        direction === 'left'
+          ? Math.max(0, container.scrollLeft - scrollAmount)
+          : Math.min(maxScrollLeft, container.scrollLeft + scrollAmount);
+
+      container.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    };
+
+    handleScroll();
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <section className="w-full" aria-labelledby="testimonials-heading" role="region">
-      <h2 id="testimonials-heading" className="sr-only">
-        Nos clients en parlent
-      </h2>
+    <Fragment>
+      {/* Desktop */}
+      <section
+        className="hidden w-full md:block"
+        aria-labelledby="testimonials-heading"
+        role="region"
+      >
+        <h2 id="testimonials-heading" className="sr-only">
+          Nos clients en parlent
+        </h2>
 
-      <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
-        {/* Gradient gauche */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/4 bg-gradient-to-r from-[#F9F7F5] to-transparent" />
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
+          {/* Gradient gauche */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/4 bg-gradient-to-r from-[#F9F7F5] to-transparent" />
 
-        {/* Gradient droite */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/4 bg-gradient-to-l from-[#F9F7F5] to-transparent" />
+          {/* Gradient droite */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/4 bg-gradient-to-l from-[#F9F7F5] to-transparent" />
 
-        {/* Marquee avec les témoignages */}
-        <Marquee pauseOnHover className="[--duration:40s] [--gap:2.5rem]">
-          {testimonials.map((testimonial, index) => (
-            <Testimonial key={index} {...testimonial} />
-          ))}
-        </Marquee>
-      </div>
-    </section>
+          {/* Marquee avec les témoignages */}
+          <Marquee pauseOnHover className="[--duration:40s] [--gap:2.5rem]">
+            {testimonials.map((testimonial, index) => (
+              <Testimonial key={index} {...testimonial} />
+            ))}
+          </Marquee>
+        </div>
+
+        <style jsx>{`
+          .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+          }
+        `}</style>
+      </section>
+
+      {/* Mobile */}
+      <section className="w-full md:hidden" aria-labelledby="testimonials-heading" role="region">
+        <h2 id="testimonials-heading" className="sr-only">
+          Nos clients en parlent
+        </h2>
+
+        <div className="flex flex-col">
+          {/* Carousel */}
+          <div
+            ref={scrollRef}
+            className="scrollbar-hide relative flex snap-x snap-mandatory gap-10 overflow-x-auto overflow-y-hidden scroll-smooth"
+            role="list"
+            aria-label="Liste des témoignages clients"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {testimonials.map((testimonial, index) => (
+              <div
+                key={index}
+                role="listitem"
+                className="shrink-0 snap-center first:ms-24 last:me-24"
+              >
+                <Testimonial {...testimonial} />
+              </div>
+            ))}
+          </div>
+
+          <nav
+            className="flex w-full justify-center gap-10"
+            aria-label="Navigation du carrousel de témoignages"
+          >
+            <button
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft}
+              className={`cursor-pointer rounded-full bg-white p-3 shadow-lg transition-colors ${
+                !canScrollLeft ? 'cursor-not-allowed opacity-40' : 'hover:bg-gray-50'
+              }`}
+              aria-label="Voir le témoignage précédent"
+              type="button"
+            >
+              <svg
+                className="h-6 w-6 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight}
+              className={`cursor-pointer rounded-full bg-white p-3 shadow-lg transition-colors ${
+                !canScrollRight ? 'cursor-not-allowed opacity-40' : 'hover:bg-gray-50'
+              }`}
+              aria-label="Voir le témoignage suivant"
+              type="button"
+            >
+              <svg
+                className="h-6 w-6 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </nav>
+        </div>
+
+        <style jsx>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+          }
+        `}</style>
+      </section>
+    </Fragment>
   );
 }

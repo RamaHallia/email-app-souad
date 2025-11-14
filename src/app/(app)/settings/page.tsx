@@ -1082,7 +1082,7 @@ export default function Settings() {
 
                 {/* Bannière d'abonnement annulé */}
                 {isCanceled && hasActiveSubscription && subscriptionEndDate && (
-                    <div className="mb-6 p-4 bg-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
+                    <div className="p-4 bg-amber-50 rounded-xl border-2 border-amber-300 shadow-sm">
                         <div className="flex items-start gap-3">
                             <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1878,7 +1878,13 @@ export default function Settings() {
                                 type="button"
                                 onClick={handleTestConnection}
                                 disabled={testingConnection || !imapFormData.email || !imapFormData.password || !imapFormData.imap_host || !imapFormData.imap_port}
-                                className={`w-full px-4 py-2.5 border-2 border-orange-500 text-orange-600 rounded-full font-medium hover:bg-gradient-to-br hover:from-[#F35F4F] hover:to-[#FFAD5A] hover:text-white hover:border-transparent transition-all flex items-center justify-center gap-2 ${(testingConnection || !imapFormData.email || !imapFormData.password || !imapFormData.imap_host || !imapFormData.imap_port) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full px-4 py-2.5 border-2 rounded-full font-medium transition-all flex items-center justify-center gap-2 ${
+                                    (testingConnection || !imapFormData.email || !imapFormData.password || !imapFormData.imap_host || !imapFormData.imap_port) 
+                                        ? 'opacity-50 cursor-not-allowed border-orange-500 text-orange-600' 
+                                        : testSuccess
+                                            ? 'bg-green-600 border-green-600 text-white hover:bg-green-700 hover:border-green-700'
+                                            : 'border-orange-500 text-orange-600 hover:bg-gradient-to-br hover:from-[#F35F4F] hover:to-[#FFAD5A] hover:text-white hover:border-transparent'
+                                }`}
                             >
                                 {testingConnection ? (
                                     <>
@@ -1887,6 +1893,13 @@ export default function Settings() {
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
                                         Test en cours...
+                                    </>
+                                ) : testSuccess ? (
+                                    <>
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Connexion réussie
                                     </>
                                 ) : (
                                     <>

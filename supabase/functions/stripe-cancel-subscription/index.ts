@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
-    const { subscription_id, subscription_type } = body;
+    const { subscription_id, subscription_type, email_configuration_id } = body;
 
     if (subscription_id) {
       const { data: subRecord, error: subRecordError } = await supabaseAdmin
@@ -94,6 +94,61 @@ Deno.serve(async (req) => {
         }, 400);
       }
 
+      // Pour les comptes additionnels, vérifier si on peut réduire la quantité au lieu de résilier
+      if (subscription_type === 'additional_account' || subRecord.subscription_type === 'additional_account') {
+        const additionalAccountPriceId = Deno.env.get('STRIPE_ADDITIONAL_ACCOUNT_PRICE_ID');
+        
+        if (additionalAccountPriceId) {
+          // Récupérer la subscription Stripe pour voir la quantité
+          const stripeSubscription = await stripe.subscriptions.retrieve(subscription_id, {
+            expand: ['items'],
+          });
+
+          const additionalAccountItem = stripeSubscription.items.data.find(
+            (item) => item.price.id === additionalAccountPriceId
+          );
+
+          if (additionalAccountItem && additionalAccountItem.quantity > 1) {
+            // Réduire la quantité au lieu de résilier toute la subscription
+            console.log(`Reducing quantity from ${additionalAccountItem.quantity} to ${additionalAccountItem.quantity - 1} for subscription ${subscription_id}`);
+            
+            await stripe.subscriptionItems.update(additionalAccountItem.id, {
+              quantity: additionalAccountItem.quantity - 1,
+              proration_behavior: 'always_invoice',
+            });
+
+            // Si on a un email_configuration_id spécifique, marquer cette entrée comme supprimée
+            // Sinon, laisser le webhook gérer la mise à jour lors du prochain événement
+            if (email_configuration_id) {
+              const { error: deleteError } = await supabaseAdmin
+                .from('stripe_user_subscriptions')
+                .update({
+                  deleted_at: new Date().toISOString(),
+                })
+                .eq('subscription_id', subscription_id)
+                .eq('subscription_type', 'additional_account')
+                .eq('email_configuration_id', email_configuration_id)
+                .is('deleted_at', null);
+
+              if (deleteError) {
+                console.error('Failed to mark subscription entry as deleted:', deleteError);
+              } else {
+                console.log(`Marked subscription entry for email_configuration_id ${email_configuration_id} as deleted (quantity reduced from ${additionalAccountItem.quantity} to ${additionalAccountItem.quantity - 1})`);
+              }
+            } else {
+              console.log(`Quantity reduced in Stripe. Webhook will update database on next event.`);
+            }
+
+            return corsResponse({
+              success: true,
+              message: 'Quantity reduced successfully',
+              quantity_reduced: true,
+            });
+          }
+        }
+      }
+
+      // Si c'est le compte principal ou si la quantité est 1, résilier normalement
       const updatedSubscription = await stripe.subscriptions.update(
         subscription_id,
         {

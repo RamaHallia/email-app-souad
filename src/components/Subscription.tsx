@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Check, Star, AlertCircle, CheckCircle, Download, Trash2, RefreshCw, Mail } from 'lucide-react';
+import { Users, Check, Star, AlertCircle, CheckCircle, Download, Trash2, RefreshCw, Mail, Lock, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from './Toast';
+import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'motion/react';
+import { SetupEmailModal } from './SetupEmailModal';
+import { CheckoutModal } from './CheckoutModal';
 
 interface SubscriptionData {
     id: string;
@@ -47,6 +51,7 @@ export function Subscription() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { showToast, ToastComponent } = useToast();
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [subscriptions, setSubscriptions] = useState<SubscriptionData[]>([]);
@@ -67,6 +72,10 @@ export function Subscription() {
     const [userPrice, setUserPrice] = useState(19);
     const [isSyncing, setIsSyncing] = useState(false);
     const [paidAdditionalAccounts, setPaidAdditionalAccounts] = useState(0);
+    const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+    const [showSetupEmailModal, setShowSetupEmailModal] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
     const premierSubscription = subscriptions.find(sub => sub.subscription_type === 'premier');
     const additionalAccountSubscriptions = subscriptions.filter(sub => sub.subscription_type === 'additional_account');
@@ -156,28 +165,99 @@ export function Subscription() {
                 const { data: { user: currentUser } } = await supabase.auth.getUser();
                 if (!currentUser) return;
 
+                // Récupérer les subscriptions actives ET supprimées pour vérifier le statut de résiliation
                 const { data: allSubs } = await supabase
                     .from('stripe_user_subscriptions')
-                    .select('subscription_id, status, cancel_at_period_end, subscription_type, email_configuration_id')
+                    .select('subscription_id, status, cancel_at_period_end, subscription_type, email_configuration_id, deleted_at')
                     .eq('user_id', currentUser.id)
-                    .is('deleted_at', null)
                     .order('created_at', { ascending: false });
+
+                // Récupérer uniquement les subscriptions actives pour l'association
+                const activeSubs = allSubs?.filter(s => !s.deleted_at) || [];
 
                 accounts = allConfigs.map((c) => {
                     let subscriptionInfo = {};
+                    let isDeleted = false; // Flag pour savoir si ce compte spécifique est résilié
 
-                    const configSubs = allSubs?.filter(s => s.email_configuration_id === c.id) || [];
+                    // Pour le compte principal, chercher la subscription "premier"
+                    if (c.is_primary) {
+                        const premierSub = activeSubs.find(s => 
+                            s.subscription_type === 'premier' && 
+                            ['active', 'trialing'].includes(s.status)
+                        );
 
-                    const activeSub = configSubs.find(s =>
-                        ['active', 'trialing'].includes(s.status)
-                    );
+                        if (premierSub) {
+                            subscriptionInfo = {
+                                subscription_id: premierSub.subscription_id,
+                                subscription_status: premierSub.status,
+                                cancel_at_period_end: premierSub.cancel_at_period_end
+                            };
+                        } else {
+                            // Vérifier si le compte principal a une subscription supprimée
+                            const deletedPremierSub = allSubs?.find(s => 
+                                s.subscription_type === 'premier' && 
+                                s.deleted_at !== null
+                            );
+                            if (deletedPremierSub) {
+                                isDeleted = true;
+                                subscriptionInfo = {
+                                    subscription_id: deletedPremierSub.subscription_id,
+                                    subscription_status: deletedPremierSub.status,
+                                    cancel_at_period_end: deletedPremierSub.cancel_at_period_end || true
+                                };
+                            }
+                        }
+                    } else {
+                        // Pour les comptes additionnels, chercher d'abord la subscription liée à l'email_configuration_id
+                        const configSubs = activeSubs.filter(s => s.email_configuration_id === c.id) || [];
 
-                    if (activeSub) {
-                        subscriptionInfo = {
-                            subscription_id: activeSub.subscription_id,
-                            subscription_status: activeSub.status,
-                            cancel_at_period_end: activeSub.cancel_at_period_end
-                        };
+                        let activeSub = configSubs.find(s =>
+                            ['active', 'trialing'].includes(s.status)
+                        );
+
+                        // Si aucune subscription active n'est liée à ce compte, vérifier si une subscription supprimée existe
+                        if (!activeSub) {
+                            const deletedConfigSub = allSubs?.find(s => 
+                                s.email_configuration_id === c.id && 
+                                s.deleted_at !== null
+                            );
+                            
+                            if (deletedConfigSub) {
+                                // Ce compte a été résilié (subscription supprimée)
+                                isDeleted = true;
+                                subscriptionInfo = {
+                                    subscription_id: deletedConfigSub.subscription_id,
+                                    subscription_status: deletedConfigSub.status,
+                                    cancel_at_period_end: true // Considéré comme résilié
+                                };
+                            } else {
+                                // Chercher une subscription additionnelle non liée disponible
+                                const unlinkedAdditionalSubs = activeSubs.filter(s => 
+                                    s.subscription_type === 'additional_account' && 
+                                    s.email_configuration_id === null &&
+                                    ['active', 'trialing'].includes(s.status)
+                                ) || [];
+
+                                // Prendre la première subscription additionnelle non liée disponible
+                                activeSub = unlinkedAdditionalSubs[0];
+                                
+                                if (activeSub) {
+                                    subscriptionInfo = {
+                                        subscription_id: activeSub.subscription_id,
+                                        subscription_status: activeSub.status,
+                                        cancel_at_period_end: activeSub.cancel_at_period_end
+                                    };
+                                }
+                            }
+                        } else {
+                            if (activeSub) {
+                                subscriptionInfo = {
+                                    subscription_id: activeSub.subscription_id,
+                                    subscription_status: activeSub.status,
+                                    cancel_at_period_end: activeSub.cancel_at_period_end
+                                };
+                            }
+                        }
                     }
 
                     return {
@@ -374,6 +454,28 @@ export function Subscription() {
 
         try {
             if (accountToDelete.isPrimary) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showToast('Vous devez être connecté', 'error');
+                    return;
+                }
+
+                // Récupérer le subscription_id de la subscription "premier"
+                const { data: premierSub } = await supabase
+                    .from('stripe_user_subscriptions')
+                    .select('subscription_id')
+                    .eq('user_id', user.id)
+                    .eq('subscription_type', 'premier')
+                    .in('status', ['active', 'trialing'])
+                    .is('deleted_at', null)
+                    .maybeSingle();
+
+                if (!premierSub?.subscription_id) {
+                    showToast('Aucun abonnement de base trouvé', 'error');
+                    setDeletingAccount(null);
+                    return;
+                }
+
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) {
                     showToast('Vous devez être connecté', 'error');
@@ -388,6 +490,10 @@ export function Subscription() {
                             'Authorization': `Bearer ${session.access_token}`,
                             'Content-Type': 'application/json',
                         },
+                        body: JSON.stringify({
+                            subscription_id: premierSub.subscription_id,
+                            subscription_type: 'premier'
+                        }),
                     }
                 );
 
@@ -420,7 +526,8 @@ export function Subscription() {
                     return;
                 }
 
-                const { data: subscriptionData } = await supabase
+                // Chercher d'abord une subscription liée à ce compte
+                const { data: linkedSubscription } = await supabase
                     .from('stripe_user_subscriptions')
                     .select('subscription_id, status')
                     .eq('user_id', user.id)
@@ -430,6 +537,27 @@ export function Subscription() {
                     .in('status', ['active', 'trialing'])
                     .order('created_at', { ascending: false })
                     .maybeSingle();
+
+                let subscriptionData = linkedSubscription;
+
+                // Si aucune subscription liée n'est trouvée, chercher une subscription additionnelle non liée
+                if (!subscriptionData?.subscription_id) {
+                    const { data: unlinkedSub } = await supabase
+                        .from('stripe_user_subscriptions')
+                        .select('subscription_id, status')
+                        .eq('user_id', user.id)
+                        .eq('subscription_type', 'additional_account')
+                        .is('email_configuration_id', null)
+                        .is('deleted_at', null)
+                        .in('status', ['active', 'trialing'])
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (unlinkedSub?.subscription_id) {
+                        subscriptionData = unlinkedSub;
+                    }
+                }
 
                 if (!subscriptionData?.subscription_id) {
                     showToast('Aucun abonnement actif trouvé pour ce compte additionnel.', 'error');
@@ -445,6 +573,9 @@ export function Subscription() {
                     return;
                 }
 
+                // TypeScript: subscriptionData est garanti non-null ici grâce à la vérification ci-dessus
+                const finalSubscriptionId = subscriptionData.subscription_id;
+
                 const response = await fetch(
                     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-cancel-subscription`,
                     {
@@ -454,8 +585,9 @@ export function Subscription() {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            subscription_id: subscriptionData.subscription_id,
-                            subscription_type: 'additional_account'
+                            subscription_id: finalSubscriptionId,
+                            subscription_type: 'additional_account',
+                            email_configuration_id: accountToDelete.id
                         })
                     }
                 );
@@ -494,6 +626,158 @@ export function Subscription() {
     const openDeleteModal = (accountId: string, email: string, isPrimary: boolean) => {
         setAccountToDelete({ id: accountId, email, isPrimary });
         setShowDeleteModal(true);
+    };
+
+    const handleCancelSlot = async (slotIndex: number, isFirstSlot: boolean) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                showToast('Vous devez être connecté', 'error');
+                return;
+            }
+
+            let subscriptionId: string | null = null;
+
+            if (isFirstSlot) {
+                // Pour le premier slot, c'est le plan de base (premier)
+                const { data: premierSub } = await supabase
+                    .from('stripe_user_subscriptions')
+                    .select('subscription_id')
+                    .eq('user_id', user.id)
+                    .eq('subscription_type', 'premier')
+                    .in('status', ['active', 'trialing'])
+                    .is('deleted_at', null)
+                    .maybeSingle();
+
+                if (!premierSub?.subscription_id) {
+                    showToast('Aucun abonnement de base trouvé', 'error');
+                    return;
+                }
+
+                subscriptionId = premierSub.subscription_id;
+            } else {
+                // Pour les autres slots, ce sont des additional_account
+                const { data: allSubs } = await supabase
+                    .from('stripe_user_subscriptions')
+                    .select('subscription_id, email_configuration_id')
+                    .eq('user_id', user.id)
+                    .eq('subscription_type', 'additional_account')
+                    .in('status', ['active', 'trialing'])
+                    .is('deleted_at', null)
+                    .order('created_at', { ascending: false });
+
+                if (!allSubs || allSubs.length === 0) {
+                    showToast('Aucun abonnement additionnel trouvé', 'error');
+                    return;
+                }
+
+                // Trouver les subscriptions qui ne sont pas liées à un email configuré
+                const unlinkedSubs = allSubs.filter(sub => !sub.email_configuration_id);
+                
+                // Pour les slots additionnels, on commence à l'index 0 (le premier slot additionnel)
+                const adjustedIndex = slotIndex - 1; // -1 car le premier slot (index 0) est le plan de base
+                
+                if (unlinkedSubs.length === 0 || adjustedIndex < 0 || adjustedIndex >= unlinkedSubs.length) {
+                    showToast('Aucun slot disponible à résilier', 'error');
+                    return;
+                }
+
+                const slotToCancel = unlinkedSubs[adjustedIndex];
+                
+                if (!slotToCancel.subscription_id) {
+                    showToast('Aucun abonnement trouvé pour ce slot', 'error');
+                    return;
+                }
+
+                subscriptionId = slotToCancel.subscription_id;
+            }
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                showToast('Vous devez être connecté', 'error');
+                return;
+            }
+
+            setDeletingAccount(`slot-${slotIndex}`);
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/stripe-cancel-subscription`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subscription_id: subscriptionId
+                    }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(`Erreur: ${data.error}`, 'error');
+                setDeletingAccount(null);
+                return;
+            }
+
+            showToast('Abonnement résilié avec succès', 'success');
+            await fetchEmailAccountsCount();
+            await fetchSubscription();
+            setDeletingAccount(null);
+        } catch (error: any) {
+            console.error('Error canceling slot:', error);
+            showToast(`Erreur lors de la résiliation: ${error.message || 'Erreur inconnue'}`, 'error');
+            setDeletingAccount(null);
+        }
+    };
+
+    const connectGmail = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/gmail-oauth-init`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session?.access_token}`,
+                        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(`Erreur: ${data.error}`, 'error');
+                return;
+            }
+
+            if (data.url) {
+                window.location.href = data.url;
+            }
+        } catch (error: any) {
+            console.error('Error connecting Gmail:', error);
+            showToast('Erreur lors de la connexion Gmail', 'error');
+        }
+    };
+
+    const handleProviderSelect = async (provider: 'gmail' | 'outlook' | 'imap') => {
+        if (provider === 'gmail') {
+            await connectGmail();
+        } else if (provider === 'outlook') {
+            if (!user?.id) {
+                showToast('Vous devez être connecté', 'error');
+                return;
+            }
+            window.location.href = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/outlook-oauth-init?user_id=${user.id}`;
+        } else {
+            setShowAddAccountModal(false);
+            setShowSetupEmailModal(true);
+        }
     };
 
     const handleForceSync = async () => {
@@ -750,6 +1034,20 @@ export function Subscription() {
         }
     };
 
+    const handleAddAccountClick = async () => {
+        if (!hasEverHadSubscription) {
+            setShowSubscriptionModal(true);
+            return;
+        }
+
+        if (hasEverHadSubscription && !hasActiveSubscription) {
+            setShowSubscriptionModal(true);
+            return;
+        }
+
+        // Ouvrir directement le modal de paiement pour ajouter un compte additionnel
+        setShowUpgradeModal(true);
+    };
     const openReactivateModal = (subscriptionId: string, email: string, isPrimary: boolean) => {
         setSubscriptionToReactivate({ subscriptionId, email, isPrimary });
         setShowReactivateModal(true);
@@ -822,6 +1120,8 @@ export function Subscription() {
 
     const subscriptionStatus = subscription?.status || 'not_started';
     const isActive = ['active', 'trialing'].includes(subscriptionStatus);
+    const hasActiveSubscription = isActive;
+    const hasEverHadSubscription = subscriptions.length > 0 || subscriptionStatus !== 'not_started';
     const nextBillingTimestamp = subscription?.current_period_end;
     const actualNextBillingDate = nextBillingTimestamp
         ? new Date(nextBillingTimestamp * 1000)
@@ -932,7 +1232,29 @@ export function Subscription() {
 
             {/* Vos comptes email */}
             <div>
-                <h3 className="font-bold text-gray-900 mb-6">Vos comptes email</h3>
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-gray-900">Vos comptes email</h3>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }} 
+                        onClick={handleAddAccountClick}
+                        className="group relative px-3 md:px-4 py-1.5 md:py-2 rounded-full font-medium text-xs md:text-sm text-white disabled:opacity-50 flex items-center gap-2 overflow-hidden w-full md:w-auto justify-center shadow-md hover:shadow-lg transition-all duration-300  hover:scale-105"
+                        style={{background:`conic-gradient(
+                            from 195.77deg at 84.44% -1.66%,
+                            #FE9736 0deg,
+                            #F4664C 76.15deg,
+                            #F97E41 197.31deg,
+                            #E3AB8D 245.77deg,
+                            #FE9736 360deg
+                        )`}}
+                    >
+                        <img src="/assets/icon/circle.png" alt="circle" className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+                        <span className="relative z-10 ">
+                            Ajouter un compte
+                        </span>
+                    
+                    </motion.button>
+                </div>
 
                 {!isActive && emailAccountsCount === 0 && (
                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
@@ -963,11 +1285,15 @@ export function Subscription() {
                         emailAccounts.map((account, index) => {
                             // Slot non configuré
                             if (account.isSlot) {
-                                const price = index === 0 ? '29€ HT/mois' : '+19€ HT/mois';
+                                // Le premier compte de la liste (index 0) est toujours le plan de base
+                                const isFirstSlot = index === 0;
+                                const price = isFirstSlot ? '29€ HT/mois' : '+19€ HT/mois';
+                                // Calculer l'index du slot parmi les slots non configurés
+                                const slotIndex = emailAccounts.filter(a => a.isSlot).indexOf(account);
                                 
                                 return (
                                     <div key={account.id}>
-                                        <div className="grid grid-cols-4 gap-6 items-center py-6 opacity-60">
+                                        <div className="grid grid-cols-4 gap-6 items-center py-6">
                                             {/* Colonne 1: Logo + Nom */}
                                             <div className="flex items-center gap-3">
                                                 <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
@@ -979,7 +1305,7 @@ export function Subscription() {
                                             </div>
 
                                             {/* Colonne 2: Numéro du slot */}
-                                            <div className="text-sm text-gray-400">
+                                            <div className="text-sm text-gray-500">
                                                 {account.email}
                                             </div>
 
@@ -990,14 +1316,15 @@ export function Subscription() {
                                                 </span>
                                             </div>
 
-                                            {/* Colonne 4: Bouton Configurer */}
+                                            {/* Colonne 4: Bouton Résilier */}
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
-                                                    onClick={() => router.push('/settings')}
-                                                    className="flex items-center gap-2 text-orange-600 hover:text-orange-700 transition-colors"
+                                                    onClick={() => handleCancelSlot(slotIndex, isFirstSlot)}
+                                                    disabled={deletingAccount === account.id}
+                                                    className="flex items-center gap-2 text-red-600 hover:text-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
-                                                    <Mail className="w-5 h-5" />
-                                                    <span className="text-sm font-medium">Configurer</span>
+                                                    <Trash2 className="w-5 h-5" />
+                                                    <span className="text-sm font-medium">Résilier</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -1047,7 +1374,7 @@ export function Subscription() {
 
                                         {/* Colonne 4: Trash rouge + Résilier */}
                                         <div className="flex items-center justify-end gap-2">
-                                            {isAccountActive && !isCanceled && (account.subscription_id || isPrimary) && (
+                                            {isAccountActive && !isCanceled && (isPrimary || account.subscription_id) && (
                                                 <button
                                                     onClick={() => openDeleteModal(account.id, account.email, isPrimary)}
                                                     disabled={deletingAccount === account.id}
@@ -1337,6 +1664,133 @@ export function Subscription() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Modal Ajouter un compte */}
+            <AnimatePresence>
+                {showAddAccountModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                    >
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ duration: 0.3, type: "spring" }}
+                            className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl font-inter max-h-[90vh] overflow-y-auto"
+                        >
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Ajouter un compte email</h2>
+                            <p className="text-gray-600 text-sm">Sélectionnez votre fournisseur d'email</p>
+                        </div>
+
+                        <div className="space-y-3 mb-6">
+                            <button
+                                onClick={() => handleProviderSelect('gmail')}
+                                className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-[#F35F4F] to-[#FFAD5A] rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md">
+                                        G
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="font-semibold text-gray-900">Gmail</div>
+                                        <div className="text-sm text-gray-500">Google Workspace</div>
+                                    </div>
+                                </div>
+                                <Check className="w-5 h-5 text-green-500" />
+                            </button>
+
+                            <button
+                                onClick={() => handleProviderSelect('outlook')}
+                                className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-lg flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M7 18h11v-2H7v2zm0-4h11v-2H7v2zm0-4h11V8H7v2zm14 8V6c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="font-semibold text-gray-900">Outlook</div>
+                                        <div className="text-sm text-gray-500">Microsoft 365</div>
+                                    </div>
+                                </div>
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">Bientôt</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleProviderSelect('imap')}
+                                className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <Lock className="w-6 h-6 text-gray-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="font-semibold text-gray-900">Autres emails</div>
+                                        <div className="text-sm text-gray-500">SMTP / IMAP</div>
+                                    </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => setShowAddAccountModal(false)}
+                            className="w-full px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal Setup Email pour IMAP */}
+            {showSetupEmailModal && user && (
+                <SetupEmailModal
+                    userId={user.id}
+                    onComplete={() => {
+                        setShowSetupEmailModal(false);
+                        fetchEmailAccountsCount();
+                        fetchSubscription();
+                    }}
+                />
+            )}
+
+            {/* Modal Checkout pour upgrade (ajouter un compte additionnel) */}
+            {showUpgradeModal && user && (
+                <CheckoutModal
+                    userId={user.id}
+                    isUpgrade={true}
+                    onComplete={() => {
+                        setShowUpgradeModal(false);
+                        fetchEmailAccountsCount();
+                        fetchSubscription();
+                        fetchPaidAdditionalAccounts();
+                    }}
+                    onClose={() => setShowUpgradeModal(false)}
+                />
+            )}
+
+            {/* Modal Checkout pour subscription (premier abonnement) */}
+            {showSubscriptionModal && user && (
+                <CheckoutModal
+                    userId={user.id}
+                    isUpgrade={false}
+                    onComplete={() => {
+                        setShowSubscriptionModal(false);
+                        fetchEmailAccountsCount();
+                        fetchSubscription();
+                        fetchPaidAdditionalAccounts();
+                    }}
+                    onClose={() => setShowSubscriptionModal(false)}
+                />
             )}
         </div>
     );
